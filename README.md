@@ -7,10 +7,13 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%20v9.9-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Razorpay](https://img.shields.io/badge/Payments-Razorpay%20SDK-02042B?logo=razorpay&logoColor=3395FF)](https://razorpay.com/)
 [![JWT](https://img.shields.io/badge/Auth-JWT%20%26%20Bcrypt-FF4088?logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![Deployment](https://img.shields.io/badge/Deployment-Vercel%20Ready-black?logo=vercel&logoColor=white)](https://vercel.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?logo=render&logoColor=white)](https://shopkart-1ykc.onrender.com)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
 > **ShopKart** is a production-grade, full-stack e-commerce web application engineered with the **MERN** (MongoDB, Express.js, React, Node.js) architecture. It delivers a fast, responsive, and secure shopping experience featuring customer authentication, product catalog discovery with live debounced search and category filtering, wishlist management, persistent shopping bag with real-time stock ceiling validation, secure **Razorpay payment gateway** integration with server-side HMAC-SHA256 signature verification, and live order tracking with interactive status progression.
+
+**🌐 Live Demo:** [https://shopkart-1ykc.onrender.com](https://shopkart-1ykc.onrender.com)
+*(Hosted on Render's free tier — the first load after a period of inactivity may take 30–60 seconds while the server wakes up. Payments run in Razorpay Test Mode: use UPI ID `success@razorpay`.)*
 
 ---
 
@@ -164,7 +167,7 @@ As implemented in `backend/routes/order.routes.js`, `backend/controllers/order.c
 | **Payment Gateway** | [Razorpay](https://razorpay.com/) | `^2.9.8` | Order creation and payment processing SDK |
 | **Cookie Parsing** | [cookie-parser](https://github.com/expressjs/cookie-parser) | `^1.4.7` | Secure cookie serialization and extraction |
 | **Environment** | [dotenv](https://github.com/motdotla/dotenv) | `^17.4.2` | Environment configuration management |
-| **Deployment** | [Vercel](https://vercel.com/) | — | Production SPA rewrites (`vercel.json`) |
+| **Deployment** | [Render](https://render.com/) + [MongoDB Atlas](https://www.mongodb.com/atlas) | — | Single web service: Express serves the API and the built React SPA |
 
 ---
 
@@ -323,6 +326,7 @@ All endpoints accept and return `application/json`. Protected endpoints require 
 SHOPKART-PROJECT/
 ├── .gitignore                      # Git ignored files & environments
 ├── README.md                       # Comprehensive project documentation
+├── package.json                    # Root build/start scripts for single-service deployment
 │
 ├── backend/                        # Node.js + Express.js API Server
 │   ├── config/
@@ -420,7 +424,7 @@ cp frontend/.env.example frontend/.env
 
 | Variable | Required | Default / Example Value | Description |
 | :--- | :---: | :--- | :--- |
-| `VITE_API_BASE_URL` | **Required** | `http://localhost:8081` | Root URL pointing to the running backend API |
+| `VITE_API_BASE_URL` | Optional | `http://localhost:8081` | Root URL of the backend API. Defaults to `http://localhost:8081` in development and to the same origin in production builds |
 
 ---
 
@@ -437,7 +441,7 @@ cp frontend/.env.example frontend/.env
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/mahakagarwal7/SHOPKART-PROJECT.git
+git clone https://github.com/Viscous106/SHOPKART-PROJECT.git
 cd SHOPKART-PROJECT
 ```
 
@@ -655,39 +659,45 @@ Instructors and reviewers can follow this step-by-step test path to verify all s
 
 ## 🌐 Deployment Guide
 
-### Frontend Deployment on Vercel
+ShopKart is deployed as a **single web service** on [Render](https://render.com/) (free tier), backed by a free [MongoDB Atlas](https://www.mongodb.com/atlas) M0 cluster. The root `package.json` builds the React frontend into `frontend/dist`, and the Express server serves it alongside the API:
 
-The frontend includes a configured `frontend/vercel.json` to handle Single Page Application (SPA) routing:
+- Browser page requests (`Accept: text/html`) receive the SPA's `index.html`, so client-side routes like `/cart` and `/orders/:id` work on refresh.
+- API requests from the app fall through to the Express routers on the same origin — no CORS or cross-site cookie setup needed.
 
-```json
-{
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
+### 1. Database (MongoDB Atlas)
 
-1. Push your code to GitHub.
-2. Import the repository into [Vercel](https://vercel.com/).
-3. Set the **Root Directory** to `frontend`.
-4. Add the Environment Variable:
-   - `VITE_API_BASE_URL`: `https://your-backend-domain.com`
-5. Deploy.
+1. Create a free **M0** cluster.
+2. Add a database user with the `readWrite` role on the `shopkart` database.
+3. Under **Network Access**, allow `0.0.0.0/0` (Render's outbound IPs are not fixed).
+4. Build the connection string with the database name included:
+   `mongodb+srv://<user>:<password>@<cluster-host>/shopkart?retryWrites=true&w=majority`
+5. Seed the catalog once from your machine:
+   ```bash
+   MONGO_URI='<connection string>' npm run seed
+   ```
 
-### Backend Deployment (Render / Railway / VPS)
+### 2. Web Service (Render)
 
-1. Deploy the `backend/` folder to your Node.js cloud hosting provider.
-2. Configure environment variables in the host dashboard:
-   - `PORT`: `8081` (or provider's default)
-   - `NODE_ENV`: `production`
-   - `MONGO_URI`: Your MongoDB Atlas cluster connection string
-   - `JWT_SECRET`: A secure random cryptographic key
-   - `RAZORPAY_KEY_ID`: Your Razorpay Key ID
-   - `RAZORPAY_KEY_SECRET`: Your Razorpay Key Secret
-3. Run `npm run seed` once in the production shell if you wish to populate initial catalog data.
+Create a **Web Service** from this repository with:
+
+| Setting | Value |
+| :--- | :--- |
+| Root Directory | *(empty — repository root)* |
+| Build Command | `npm run build` |
+| Start Command | `npm start` |
+| Instance Type | Free |
+
+Environment variables:
+
+| Variable | Value |
+| :--- | :--- |
+| `NODE_ENV` | `production` |
+| `MONGO_URI` | Atlas connection string from step 1 |
+| `JWT_SECRET` | A long random string |
+| `RAZORPAY_KEY_ID` | Razorpay Test Key ID (`rzp_test_...`) |
+| `RAZORPAY_KEY_SECRET` | Razorpay Test Key Secret |
+
+Every push to `main` triggers an automatic redeploy.
 
 ---
 
@@ -703,7 +713,8 @@ The frontend includes a configured `frontend/vercel.json` to handle Single Page 
 
 ## 👤 Author & Acknowledgements
 
-- **Author**: Mahak Agarwal ([@mahakagarwal7](https://github.com/mahakagarwal7))
-- **Project Repository**: [SHOPKART-PROJECT on GitHub](https://github.com/mahakagarwal7/SHOPKART-PROJECT)
+- **Author**: Yash Nitin Virulkar ([@Viscous106](https://github.com/Viscous106))
+- **Project Repository**: [SHOPKART-PROJECT on GitHub](https://github.com/Viscous106/SHOPKART-PROJECT)
+- **Live Demo**: [shopkart-1ykc.onrender.com](https://shopkart-1ykc.onrender.com)
 - **License**: This project is licensed under the **ISC License**.
 
