@@ -2,6 +2,9 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import customerRoutes from "./routes/customer.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import wishlistRoutes from "./routes/wishlist.routes.js";
@@ -33,6 +36,19 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve the built frontend (if present) so the whole app runs as one service.
+// Browser page loads (Accept: text/html) get the SPA; API calls fall through.
+const frontendDist = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist");
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.use((req, res, next) => {
+        if (req.method === "GET" && req.headers.accept?.includes("text/html")) {
+            return res.sendFile(path.join(frontendDist, "index.html"));
+        }
+        next();
+    });
+}
 
 mongoose.connect(dbUrl).then(() => {
     console.log("DB Connected Successfully");
